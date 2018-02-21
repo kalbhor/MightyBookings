@@ -66,7 +66,9 @@ func MakePayment(w http.ResponseWriter, r *http.Request) {
 		}
 		t := time.Now().In(loc)
 		orderid := fmt.Sprintf("%d", t.Unix())
-		bookingtime := fmt.Sprintf("%v:%v:%v", t.Hour(), t.Minute(), t.Second())
+		bookingtime := fmt.Sprintf("%v-%v-%v %v:%v:%v", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+		m["order_id"] = orderid
+		m["bookingtime"] = bookingtime
 
 		p := &Purchase{Status: 0, Name: m["name"], Phone: m["phone"], Email: m["email"], BookingTime: bookingtime, Quantity: quantity, OrderID: orderid,
 			Show: Show{ID: m["showid"], HallName: m["hall"],
@@ -104,6 +106,8 @@ func MakePayment(w http.ResponseWriter, r *http.Request) {
 		}
 		defer resp.Body.Close()
 		io.Copy(w, resp.Body)
+		
+		fmt.Println("Added to purchase table : ", p)
 
 	}
 }
@@ -133,6 +137,12 @@ func PaymentResponse(w http.ResponseWriter, r *http.Request) {
 	   This is the URL traknpay will callback after payment.
 	   If payment is succesful, twilio messages to car provider, customer, etc.
 	*/
+	db2, err := connectDB(purchaseDB)
+	if err != nil {
+		log.Println("Error while connecting to db :", err)
+	}
+	defer db2.Close()
+
 
 	db, err := connectDB(adminDB)
 	if err != nil {
@@ -158,10 +168,12 @@ func PaymentResponse(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m := url.Query()
+	fmt.Println("Got from tracknpay : ", m)
 	quantity, err := strconv.Atoi(m["quantity"][0])
 	if err != nil {
 		log.Println("Error while converting quantity", err)
 	}
+	fmt.Println("1")
 
 	if m["response_message"][0] != "Transaction successful" {
 		err = EditSeats(db, quantity, m["showid"][0], m["category"][0])
@@ -169,11 +181,15 @@ func PaymentResponse(w http.ResponseWriter, r *http.Request) {
 			log.Println("Could not add seats back : ", err)
 		}
 	} else {
-		p := Purchase{Status: 1, OrderID: m["orderid"][0], Show: Show{HallName: m["description"][0]}}
-		err := p.Success(db)
+		fmt.Println("2")
+		p := Purchase{Status: 1, OrderID: m["order_id"][0], Show: Show{HallName: m["description"][0]}}
+		fmt.Println("3")
+		err := p.Success(db2)
+		fmt.Println("4")
 		if err != nil {
 			log.Println("Could not confirm seats : ", err)
 		}
+		fmt.Println("5")
 	}
 
 }
@@ -313,6 +329,9 @@ func main() {
 		CreateHallTable("Denzong Hall")
 		CreatePurchaseTable("Denzong Hall")
 	*/
+
+		CreateHallTable("Imperial Hall")
+		CreatePurchaseTable("Imperial Hall")
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.HandleFunc("/getdata", GetData)

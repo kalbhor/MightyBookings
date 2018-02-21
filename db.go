@@ -223,7 +223,8 @@ func EditSeats(db *sql.DB, shifter int, ID string, category string) error {
 }
 
 func (p *Purchase) Success(db *sql.DB) error {
-	query := fmt.Sprintf("INSERT " + "`" + p.Show.HallName + "`" + "SET Status=? WHERE OrderID=?")
+	query := fmt.Sprintf("UPDATE " + "`" + p.Show.HallName + "`" + "SET Status=? WHERE OrderID=?")
+	fmt.Println(query)
 	stmt, err := db.Prepare(query)
 	if err != nil {
 		return err

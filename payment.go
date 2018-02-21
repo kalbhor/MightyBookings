@@ -23,8 +23,8 @@ const (
 	country         = "India"
 	zip             = "576104"
 	gateway         = "https://biz.traknpay.in/v2/paymentrequest"
-	returnURL       = "http://223.237.181.8:8000/paymentresponse" // callback url for traknpay
-	failureURL      = "http://223.237.181.8:8000/failure"
+	returnURL       = "http://54.163.75.233:8000/paymentresponse" // callback url for traknpay
+	failureURL      = "http://54.163.75.233:8000/failure"
 )
 
 var (
@@ -62,7 +62,7 @@ func CallPayment(m map[string]string) (*http.Response, error) {
 	params["city"] = city
 	params["zip_code"] = zip
 	params["return_url"] = returnURL
-	params["order_id"] = m["orderid"] //
+	params["order_id"] = m["order_id"] //
 	params["api_key"] = paymentKey
 	params["mode"] = "TEST" //
 
