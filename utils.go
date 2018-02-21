@@ -94,7 +94,8 @@ func CreatePurchaseTable(hallName string) error {
   Quantity int(50) NOT NULL,
   OrderID varchar(100) NOT NULL,
   ShowID varchar(100) NOT NULL,
-  BookingTime timestamp NULL DEFAULT NULL
+  BookingTime timestamp DEFAULT NULL,
+  Status	BOOL DEFAULT 0
 )`)
 
 	fmt.Println(query)

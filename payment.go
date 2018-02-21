@@ -4,6 +4,8 @@ import (
 	"crypto/sha512"
 	"fmt"
 	"math/rand"
+	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -21,8 +23,8 @@ const (
 	country         = "India"
 	zip             = "576104"
 	gateway         = "https://biz.traknpay.in/v2/paymentrequest"
-	returnURL       = "http://1.186.23.40:8000/paymentresponse" // callback url for traknpay
-	failureURL      = "http://1.186.23.40:8000/failure"
+	returnURL       = "http://223.237.181.8:8000/paymentresponse" // callback url for traknpay
+	failureURL      = "http://223.237.181.8:8000/failure"
 )
 
 var (
@@ -30,7 +32,7 @@ var (
 	paymentSalt = os.Getenv("PAYMENT_SALT")
 )
 
-func GenerateParams(m map[string]string) map[string]string {
+func CallPayment(m map[string]string) (*http.Response, error) {
 
 	rand.Seed(time.Now().Unix())
 
@@ -46,7 +48,7 @@ func GenerateParams(m map[string]string) map[string]string {
 	params["category"] = m["category"]
 	params["date"] = m["date"]
 	params["time"] = m["time"]
-	params["description"] = description
+	params["description"] = m["hall"]
 
 	/*	params["hall"] = m["hall"]   // Redundant
 		params["movie"] = m["movie"] // Redundant
@@ -86,5 +88,15 @@ func GenerateParams(m map[string]string) map[string]string {
 
 	params["hash"] = hashString
 
-	return params
+	v := url.Values{}
+
+	for key := range params {
+		v.Set(key, params[key])
+	}
+	resp, err := http.PostForm(gateway, v)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }

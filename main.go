@@ -30,56 +30,77 @@ func MakePayment(w http.ResponseWriter, r *http.Request) {
 	*/
 
 	if r.Method == "GET" { // Change to POST
-		m := make(map[string]string)
 
-		m["name"] = template.HTMLEscapeString(r.URL.Query().Get("name"))
-		m["email"] = template.HTMLEscapeString(r.URL.Query().Get("email"))
-		m["phone"] = template.HTMLEscapeString(r.URL.Query().Get("phone"))
-		m["price"] = template.HTMLEscapeString(r.URL.Query().Get("price")) // const that we can set ourselves
-
-		m["movie"] = template.HTMLEscapeString(r.URL.Query().Get("movie")) // *
-		m["hall"] = template.HTMLEscapeString(r.URL.Query().Get("hall"))
-		m["showid"] = template.HTMLEscapeString(r.URL.Query().Get("showid")) // *
-		m["time"] = template.HTMLEscapeString(r.URL.Query().Get("time"))
-		m["date"] = template.HTMLEscapeString(r.URL.Query().Get("date"))
-		m["quantity"] = template.HTMLEscapeString(r.URL.Query().Get("quantity"))
-		m["category"] = template.HTMLEscapeString(r.URL.Query().Get("category"))
-
-		m["orderid"] = template.HTMLEscapeString(r.URL.Query().Get("orderid"))
-
-		quantity, err := strconv.Atoi(m["quantity"])
-		if err != nil {
-			log.Println("Error while converting quantity", err)
-		}
-
-		db, err := connectDB(adminDB)
+		db, err := connectDB(adminDB) // Make connection to admin db
 		if err != nil {
 			log.Println("Error while connecting to db : ", err)
 		}
 		defer db.Close()
 
-		RemSeats, err := LookupRemSeats(db, m["showid"], m["category"])
+		db2, err := connectDB(purchaseDB)
 		if err != nil {
-			log.Println("Edit seats err : ", err)
+			log.Println("Error while connecting to db :", err)
 		}
-		if RemSeats-quantity < 0 {
-			fmt.Fprintf(w, "No seats remaining")
+		defer db2.Close()
+
+		m := make(map[string]string)
+
+		for key, val := range r.URL.Query() {
+			if len(val) != 0 {
+				m[key] = template.HTMLEscapeString(val[0])
+			}
+		}
+
+		fmt.Println(m)
+		quantity, err := strconv.Atoi(m["quantity"])
+		if err != nil {
+			log.Println("Could not convert quantity to int : ", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		price, err := strconv.Atoi(m["price"])
+		if err != nil {
+			log.Println("Could not convert amount to int ", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		t := time.Now().In(loc)
+		orderid := fmt.Sprintf("%d", t.Unix())
+		bookingtime := fmt.Sprintf("%v:%v:%v", t.Hour(), t.Minute(), t.Second())
+
+		p := &Purchase{Status: 0, Name: m["name"], Phone: m["phone"], Email: m["email"], BookingTime: bookingtime, Quantity: quantity, OrderID: orderid,
+			Show: Show{ID: m["showid"], HallName: m["hall"],
+				Movie: Movie{Name: m["movie"], Time: m["time"], Date: m["date"]}, Category: Category{Name: m["category"], Price: price}}}
+		err = p.AddPurchase(db2)
+		if err != nil {
+			log.Println(err)
+		}
+
+		remSeats, err := RemainingSeats(db, m["showid"], m["category"])
+		if err != nil {
+			log.Println("Could not lookup remaining seats : ", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		if remSeats-quantity < 0 {
+			log.Println("Quantity greater than remaining seats")
+			http.Error(w, err.Error(), 500)
 			return
 		}
 
 		err = EditSeats(db, -1*quantity, m["showid"], m["category"])
 		if err != nil {
-			log.Println("Edit seats err : ", err)
+			log.Println("Could not deduct seats : ", err)
+			http.Error(w, err.Error(), 500)
+			return
 		}
-		params := GenerateParams(m)
-		v := url.Values{}
 
-		for key := range params {
-			v.Set(key, params[key])
-		}
-		resp, err := http.PostForm(gateway, v)
+		resp, err := CallPayment(m)
 		if err != nil {
-			log.Println(err)
+			log.Println("Could not connect to payment page : ", err)
+			http.Error(w, err.Error(), 500)
+			return
 		}
 		defer resp.Body.Close()
 		io.Copy(w, resp.Body)
@@ -101,9 +122,9 @@ func FailedPayment(w http.ResponseWriter, r *http.Request) {
 
 	url, err := url.Parse(params)
 	if err != nil {
-		panic(err)
+		log.Println("Could not parse params : ", err)
 	}
-	fmt.Println(url.Query())
+	fmt.Println(url)
 
 }
 
@@ -113,10 +134,17 @@ func PaymentResponse(w http.ResponseWriter, r *http.Request) {
 	   If payment is succesful, twilio messages to car provider, customer, etc.
 	*/
 
+	db, err := connectDB(adminDB)
+	if err != nil {
+		log.Println("Error while connecting to db :", err)
+	}
+	defer db.Close()
+
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 
 	if err != nil {
+		fmt.Println("Error while reading request body from trakNPay : ", err)
 		http.Error(w, err.Error(), 500)
 		return
 	}
@@ -125,7 +153,8 @@ func PaymentResponse(w http.ResponseWriter, r *http.Request) {
 
 	url, err := url.Parse(params)
 	if err != nil {
-		panic(err)
+		http.Error(w, err.Error(), 500)
+		return
 	}
 
 	m := url.Query()
@@ -134,43 +163,17 @@ func PaymentResponse(w http.ResponseWriter, r *http.Request) {
 		log.Println("Error while converting quantity", err)
 	}
 
-	db, err := connectDB(adminDB)
-	if err != nil {
-		log.Println("Error while connecting to db :", err)
-	}
-	defer db.Close()
-
 	if m["response_message"][0] != "Transaction successful" {
 		err = EditSeats(db, quantity, m["showid"][0], m["category"][0])
 		if err != nil {
-			log.Println("Edit seats err : ", err)
+			log.Println("Could not add seats back : ", err)
 		}
 	} else {
-		amount, err := strconv.Atoi(m["amount"][0])
+		p := Purchase{Status: 1, OrderID: m["orderid"][0], Show: Show{HallName: m["description"][0]}}
+		err := p.Success(db)
 		if err != nil {
-			log.Println("Error while converting price", err)
+			log.Println("Could not confirm seats : ", err)
 		}
-		moviename, hallname, err := LookupHallMovie(db, m["showid"][0])
-		orderid := fmt.Sprintf("%d", time.Now().Unix())
-		if err != nil {
-			panic(err)
-		}
-
-		p := &Purchase{Name: m["name"][0], Phone: m["phone"][0], Email: m["email"][0], BookingTime: m["payment_datetime"][0], Quantity: quantity, OrderID: orderid,
-			Show: Show{ID: m["showid"][0], HallName: hallname,
-				Movie: Movie{Name: moviename, Time: m["time"][0], Date: m["date"][0]}, Category: Category{Name: m["category"][0]}}}
-
-		db2, err := connectDB(purchaseDB)
-		if err != nil {
-			log.Println("Error while connecting to db :", err)
-		}
-		defer db2.Close()
-
-		err = p.AddPurchase(db2, amount)
-		if err != nil {
-			log.Println(err)
-		}
-
 	}
 
 }

@@ -20,9 +20,10 @@ var (
 )
 
 type Purchase struct {
-	Name  string
-	Phone string
-	Email string
+	Status int
+	Name   string
+	Phone  string
+	Email  string
 	Show
 	Quantity    int
 	OrderID     string
@@ -85,7 +86,7 @@ func (c *Category) AddCategory(db *sql.DB, hallname string, ID string) error {
 	return nil
 }
 
-func LookupRemSeats(db *sql.DB, ID, Category string) (int, error) {
+func RemainingSeats(db *sql.DB, ID, Category string) (int, error) {
 	rows, err := db.Query("SELECT RemSeats FROM Categories WHERE ID=? AND Name=?", ID, Category)
 	if err != nil {
 		return 0, err
@@ -146,7 +147,7 @@ func GetInfo(db *sql.DB, table string) (*Show, error) {
 	return s, nil
 }
 
-func LookupHallMovie(db *sql.DB, ID string) (string, string, error) {
+func LookupShow(db *sql.DB, ID string) (string, string, error) {
 	rows, err := db.Query("SELECT HallName FROM Categories WHERE ID=?", ID)
 	if err != nil {
 		return "", "", err
@@ -221,14 +222,30 @@ func EditSeats(db *sql.DB, shifter int, ID string, category string) error {
 
 }
 
-func (p *Purchase) AddPurchase(db *sql.DB, amount int) error {
-	query := fmt.Sprintf("INSERT " + "`" + p.Show.HallName + "`" + "SET Price=?, Name=?, Phone=?, Email=?, BookingTime=?, Quantity=?, OrderID=?, Movie=?, Category=?, Time=?, Date=?, ShowID=?")
+func (p *Purchase) Success(db *sql.DB) error {
+	query := fmt.Sprintf("INSERT " + "`" + p.Show.HallName + "`" + "SET Status=? WHERE OrderID=?")
 	stmt, err := db.Prepare(query)
 	if err != nil {
 		return err
 	}
 
-	_, err = stmt.Exec(amount, p.Name, p.Phone, p.Email, p.BookingTime, p.Quantity, p.OrderID, p.Show.Movie.Name, p.Show.Category.Name, p.Show.Movie.Time, p.Show.Movie.Date, p.Show.ID)
+	_, err = stmt.Exec(p.Status, p.OrderID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (p *Purchase) AddPurchase(db *sql.DB) error {
+	query := fmt.Sprintf("INSERT " + "`" + p.Show.HallName + "`" + "SET Status=?, Name=?, Phone=?, Email=?, BookingTime=?, Quantity=?, OrderID=?, Movie=?, Category=?, Price=?, Time=?, Date=?, ShowID=?")
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(p.Status, p.Name, p.Phone, p.Email, p.BookingTime, p.Quantity, p.OrderID, p.Show.Movie.Name, p.Show.Category.Name, p.Category.Price, p.Show.Movie.Time, p.Show.Movie.Date, p.Show.ID)
 	if err != nil {
 		return err
 	}
