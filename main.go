@@ -106,7 +106,7 @@ func MakePayment(w http.ResponseWriter, r *http.Request) {
 		}
 		defer resp.Body.Close()
 		io.Copy(w, resp.Body)
-		
+
 		fmt.Println("Added to purchase table : ", p)
 
 	}
@@ -142,7 +142,6 @@ func PaymentResponse(w http.ResponseWriter, r *http.Request) {
 		log.Println("Error while connecting to db :", err)
 	}
 	defer db2.Close()
-
 
 	db, err := connectDB(adminDB)
 	if err != nil {
@@ -210,6 +209,7 @@ func GetData(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 		}
 		for _, Hall := range HallList {
+			fmt.Println(Hall)
 			s, err = GetInfo(db, Hall)
 			if err != nil || s.HallName == "" {
 				fmt.Println(err)
@@ -223,6 +223,7 @@ func GetData(w http.ResponseWriter, r *http.Request) {
 				now := time.Now().In(loc)
 				now.Add(time.Hour * time.Duration(2))
 				if now.Before(t) {
+					fmt.Println(s)
 					shows = append(shows, s)
 				}
 
@@ -245,7 +246,6 @@ func AddData(w http.ResponseWriter, r *http.Request) {
 		t, _ := template.ParseFiles("admin.gtpl")
 		t.Execute(w, nil)
 	} else {
-		fmt.Println("GOT STUFF")
 		if err := r.ParseForm(); err != nil {
 			fmt.Println(err)
 		}
@@ -329,9 +329,6 @@ func main() {
 		CreateHallTable("Denzong Hall")
 		CreatePurchaseTable("Denzong Hall")
 	*/
-
-		CreateHallTable("Imperial Hall")
-		CreatePurchaseTable("Imperial Hall")
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.HandleFunc("/getdata", GetData)

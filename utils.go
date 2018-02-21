@@ -13,7 +13,7 @@ func CreateHallList() error {
 
 	query := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS HallList (
 			 SL int(100) PRIMARY KEY AUTO_INCREMENT,
-			 Name varchar(100) NOT NULL
+			 Name varchar(100) UNIQUE NOT NULL
 			)`)
 
 	fmt.Println(query)
@@ -143,9 +143,9 @@ func CreateHallTable(hallName string) error {
 	 ID varchar(100) PRIMARY KEY,
      SL int(100) UNIQUE AUTO_INCREMENT,
      Name varchar(100) NOT NULL,
-     Description varchar(100) NOT NULL,
-     Trailer varchar(100) NOT NULL,
-     Poster varchar(100) NOT NULL,
+     Description MEDIUMTEXT NOT NULL,
+     Trailer TEXT NOT NULL,
+     Poster TEXT NOT NULL,
      Time time NOT NULL,
      Date date NOT NULL
 )`)
