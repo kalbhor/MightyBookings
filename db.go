@@ -20,38 +20,47 @@ var (
 )
 
 type Purchase struct {
-	Status int
-	Name   string
-	Phone  string
-	Email  string
-	Show
-	Quantity    int
-	OrderID     string
-	BookingTime string
+	Status int `json:"status"`
+
+	Name string `json:"name"`
+
+	Phone string `json:"phone"`
+
+	Email string `json:"email"`
+
+	Show `json:"show"`
+
+	Quantity int `json:"quantity"`
+
+	OrderID string `json:"order_id"`
+
+	BookingTime string `json:"booking_time"`
 }
 
 type Show struct { //
 
-	HallName string
-	ID       string
+	HallName string `json:"hallname"`
+	ID       string `json:"showid"`
 
 	Categories []Category `json:"categories"`
 	Movie      `json:"movie"`
 }
 
 type Category struct { //
-	Price int
-	Name  string
-	Seats int
+	Price int    `json:"price"`
+	Name  string `json:"name"`
+	Seats int    `json:"seats"`
 }
 
 type Movie struct { //
-	Name        string
-	Description string
-	Trailer     string
-	Poster      string
-	Date        string
-	Time        string
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Trailer     string `json:"trailer"`
+	Poster      string `json:"poster"`
+
+	Date string `json:"date"`
+
+	Time string `json:"time"`
 }
 
 func connectDB(dbName string) (*sql.DB, error) {
