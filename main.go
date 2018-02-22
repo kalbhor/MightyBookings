@@ -72,7 +72,10 @@ func MakePayment(w http.ResponseWriter, r *http.Request) {
 
 		p := &Purchase{Status: 0, Name: m["name"], Phone: m["phone"], Email: m["email"], BookingTime: bookingtime, Quantity: quantity, OrderID: orderid,
 			Show: Show{ID: m["showid"], HallName: m["hall"],
-				Movie: Movie{Name: m["movie"], Time: m["time"], Date: m["date"]}, Category: Category{Name: m["category"], Price: price}}}
+				Movie: Movie{Name: m["movie"], Time: m["time"], Date: m["date"]}}}
+
+		p.Show.Categories = make([]Category, 1)
+		p.Show.Categories[0] = Category{Name: m["category"], Price: price}
 		err = p.AddPurchase(db2)
 		if err != nil {
 			log.Println(err)

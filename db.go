@@ -35,8 +35,8 @@ type Show struct { //
 	HallName string
 	ID       string
 
-	Category `json:"category"`
-	Movie    `json:"movie"`
+	Categories []Category `json:"categories"`
+	Movie      `json:"movie"`
 }
 
 type Category struct { //
@@ -109,16 +109,41 @@ func RemainingSeats(db *sql.DB, ID, Category string) (int, error) {
 }
 
 func GetInfo(db *sql.DB, table string) (*Show, error) {
-	rows, err := db.Query("SELECT ID, HallName, Name, Price, TotalSeats FROM Categories WHERE HallName=?", table)
+	var count int
+	var hallname string
+	m := make(map[string]int)
+
+	rows, err := db.Query("SELECT HallName, COUNT(*) FROM Categories GROUP BY HallName")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		err := rows.Scan(&hallname, &count)
+		if err != nil {
+			return nil, err
+		} else {
+			m[hallname] = count
+		}
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err = db.Query("SELECT ID, HallName, Name, Price, TotalSeats FROM Categories WHERE HallName=?", table)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	s := &Show{}
-
+	s.Categories = make([]Category, m[table])
+	i := 0
 	for rows.Next() {
-		err = rows.Scan(&s.ID, &s.HallName, &s.Category.Name, &s.Category.Price, &s.Category.Seats)
+		err = rows.Scan(&s.ID, &s.HallName, &s.Categories[i].Name, &s.Categories[i].Price, &s.Categories[i].Seats)
+		i++
 		if err != nil {
 			return nil, err
 		}
@@ -246,7 +271,9 @@ func (p *Purchase) AddPurchase(db *sql.DB) error {
 		return err
 	}
 
-	_, err = stmt.Exec(p.Status, p.Name, p.Phone, p.Email, p.BookingTime, p.Quantity, p.OrderID, p.Show.Movie.Name, p.Show.Category.Name, p.Category.Price, p.Show.Movie.Time, p.Show.Movie.Date, p.Show.ID)
+	p.Show.Categories = make([]Category, 1)
+
+	_, err = stmt.Exec(p.Status, p.Name, p.Phone, p.Email, p.BookingTime, p.Quantity, p.OrderID, p.Show.Movie.Name, p.Show.Categories[0].Name, p.Categories[0].Price, p.Show.Movie.Time, p.Show.Movie.Date, p.Show.ID)
 	if err != nil {
 		return err
 	}
