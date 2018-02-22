@@ -39,8 +39,8 @@ type Purchase struct {
 
 type Show struct { //
 
-	HallName string `json:"hallname"`
-	ID       string `json:"showid"`
+	HallName string `json:"hall"`
+	ID       string `json:"show_id"`
 
 	Categories []Category `json:"categories"`
 	Movie      `json:"movie"`
