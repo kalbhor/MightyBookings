@@ -246,7 +246,7 @@ func GetData(w http.ResponseWriter, r *http.Request) {
 
 func AddData(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		t, _ := template.ParseFiles("admin.gtpl")
+		t, _ := template.ParseFiles("admin/admin.gtpl")
 		t.Execute(w, nil)
 	} else {
 		if err := r.ParseForm(); err != nil {
@@ -333,11 +333,12 @@ func main() {
 		CreatePurchaseTable("Denzong Hall")
 	*/
 
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("admin/static"))))
 	http.HandleFunc("/getdata", GetData)
 	http.HandleFunc("/makepayment", MakePayment)
 	http.HandleFunc("/paymentresponse", PaymentResponse)
 	http.HandleFunc("/adddata", AddData)
 	http.HandleFunc("/failure", FailedPayment)
+	http.HandleFunc("/purchases", ViewPurchases)
 	http.ListenAndServe(port, nil)
 }
